@@ -25,7 +25,7 @@ jobs:
 
       - name: Run AI Agent
         env:
-          OPENROUTER_API_KEY: ${{secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           MODEL_NAME: nvidia/nemotron-nano-12b-v2-vl:free
