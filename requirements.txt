@@ -1,0 +1,11 @@
+requests
+beautifulsoup4
+pandas
+sentence-transformers
+faiss-cpu
+langchain
+supabase
+gradio
+python-dotenv
+tqdm
+urllib3
