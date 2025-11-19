@@ -102,7 +102,7 @@ def run_pipeline(query: str):
                 "metadata": {"source": url, "title": title, "chunk": i}
             })
 
-    print("Chunks prepared:", len(docs)
+    print("Chunks prepared:", len(docs))
     if not docs:
         return None
 
