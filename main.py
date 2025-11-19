@@ -1,19 +1,67 @@
-# src/main.py
+# main.py (merged with llm_client)
 import os
 import re
 import pandas as pd
-from llm_client import OpenRouterLLM, call_openrouter_model
+import requests
+from typing import Optional, List, Dict, Any
 from scraper import fetch_html, extract_text, chunk_text, find_links_from_text
 from embeddings import get_embeddings_model
 from index_store import build_faiss_index, load_index
 from uploader import upload_dataframe
+from langchain.llms.base import LLM
+from langchain.schema import LLMResult
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
 from tqdm.auto import tqdm
 
+# OpenRouter configuration
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 OPENROUTER_PRIMARY = os.getenv("OPENROUTER_MODEL", "deepseek-r1:free")
 OPENROUTER_FALLBACK = os.getenv("OPENROUTER_FALLBACK", "nvidia/nemotron-nano-12b-v2-vl:free")
-OPENROUTER_KEY = os.getenv("OPENROUTER_API_KEY")
+
+# A thin helper to call OpenRouter
+def call_openrouter_model(model: str, messages: List[Dict[str,str]], extra: Optional[Dict]=None, timeout=60):
+    payload = {
+        "model": model,
+        "messages": messages
+    }
+    if extra:
+        payload["extra_body"] = extra
+    resp = requests.post(
+        OPENROUTER_URL,
+        headers={
+            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+            "Content-Type": "application/json"
+        },
+        json=payload,
+        timeout=timeout
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    # openrouter returns choices[0].message.content
+    return data
+
+# LangChain-compatible LLM wrapper for OpenRouter
+class OpenRouterLLM(LLM):
+    model_name: str = "deepseek-r1:free"
+    temperature: float = 0.0
+
+    @property
+    def _identifying_params(self) -> Dict[str, Any]:
+        return {"model_name": self.model_name, "temperature": self.temperature}
+
+    def _call(self, prompt: str, stop: Optional[List[str]] = None) -> str:
+        # Using chat format; we put prompt in a single user message
+        msgs = [{"role": "user", "content": prompt}]
+        extra = {"temperature": self.temperature}
+        data = call_openrouter_model(self.model_name, msgs, extra=extra)
+        content = data["choices"][0]["message"]["content"]
+        return content
+
+    async def _acall(self, prompt: str, stop: Optional[List[str]] = None) -> str:
+        # For simplicity not implemented (synchronous)
+        raise NotImplementedError
 
 def prompt_to_urls(query: str, model_name=OPENROUTER_PRIMARY):
     # ask LLM to propose URLs (simple prompt)
@@ -54,7 +102,7 @@ def run_pipeline(query: str):
                 "metadata": {"source": url, "title": title, "chunk": i}
             })
 
-    print("Chunks prepared:", len(docs))
+    print("Chunks prepared:", len(docs)
     if not docs:
         return None
 
