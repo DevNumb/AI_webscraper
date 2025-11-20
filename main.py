@@ -23,8 +23,8 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 # ========== GOOGLE SHEETS INTEGRATION ==========
 GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1utPyB-aFOmOlVkkf0NvgfAlSUxDdj94-aWHGQjI7l4g/edit?usp=sharing"  # ⬅️ REMPLACEZ CETTE URL
 
-def get_query_from_google_sheets():
-    """Récupère la première query depuis Google Sheets"""
+def get_all_queries_from_google_sheets():
+    """Récupère TOUTES les queries depuis Google Sheets"""
     try:
         # Extraire l'ID du sheet depuis l'URL
         sheet_id = GOOGLE_SHEET_URL.split('/d/')[1].split('/')[0]
@@ -37,21 +37,22 @@ def get_query_from_google_sheets():
         # Lire le CSV
         df = pd.read_csv(pd.compat.StringIO(response.text))
         
-        # Prendre la première query (deuxième ligne, première colonne)
-        if len(df) > 1:
-            query = df.iloc[1, 0]
-        else:
-            query = df.iloc[0, 0]
-            
-        # Vérifier que ce n'est pas l'en-tête
-        if pd.notna(query) and str(query).strip().lower() != 'queries':
-            return str(query).strip()
-        else:
-            return "latest news about artificial intelligence"  # Fallback
+        # Prendre TOUTES les queries (sauf l'en-tête)
+        queries = []
+        for i in range(len(df)):
+            query = df.iloc[i, 0]
+            # Vérifier que ce n'est pas l'en-tête et pas vide
+            if (pd.notna(query) and 
+                str(query).strip().lower() != 'queries' and 
+                str(query).strip() != ''):
+                queries.append(str(query).strip())
+        
+        print(f"📋 Found {len(queries)} queries in Google Sheets")
+        return queries
             
     except Exception as e:
         print(f"Error fetching from Google Sheets: {e}")
-        return "latest news about artificial intelligence"  # Fallback
+        return ["latest news about artificial intelligence"]  # Fallback
 
 # ========== LLM CLIENT ==========
 def call_openrouter_model(model: str, messages: List[Dict[str,str]], extra: Optional[Dict]=None, timeout=60):
@@ -150,11 +151,13 @@ def upload_dataframe(df: pd.DataFrame):
             records = df.to_dict(orient="records")
             if records:
                 result = supabase.table("web_search_results").insert(records).execute()
-                print(f"Uploaded {len(records)} records to Supabase")
+                print(f"✅ Uploaded {len(records)} records to Supabase")
+                return True
         except Exception as e:
-            print(f"Supabase upload error: {e}")
+            print(f"❌ Supabase upload error: {e}")
     else:
-        print("Supabase credentials not found, skipping upload")
+        print("⚠️ Supabase credentials not found, skipping upload")
+    return False
 
 # ========== MAIN PIPELINE ==========
 def prompt_to_urls(query: str, model_name=OPENROUTER_PRIMARY):
@@ -174,7 +177,7 @@ def prompt_to_urls(query: str, model_name=OPENROUTER_PRIMARY):
                     urls.append(line)
         return urls[:5]  # Limit to 5 URLs
     except Exception as e:
-        print(f"Error getting URLs from LLM: {e}")
+        print(f"❌ Error getting URLs from LLM: {e}")
         # Fallback URLs
         return [
             "https://en.wikipedia.org/wiki/Web_scraping",
@@ -199,17 +202,17 @@ Answer:"""
         return f"Error getting answer from LLM: {e}"
 
 def run_pipeline(query: str):
-    print("Starting AI Web Scraper...")
-    print("Query:", query)
+    print("🚀 Starting AI Web Scraper...")
+    print(f"🎯 Query: {query}")
     
     # Step 1: Get URLs from LLM
     urls = prompt_to_urls(query)
-    print("URLs found:", urls)
+    print(f"🌐 URLs found: {urls}")
 
     # Step 2: Scrape and process content
     docs = []
     for url in urls:
-        print(f"Scraping: {url}")
+        print(f"📥 Scraping: {url}")
         html = fetch_html(url)
         if not html:
             continue
@@ -217,7 +220,7 @@ def run_pipeline(query: str):
         if not text or len(text) < 100:
             continue
             
-        print(f"Found content: {title} ({len(text)} chars)")
+        print(f"📄 Found content: {title} ({len(text)} chars)")
         chunks = chunk_text(text)
         
         for i, chunk in enumerate(chunks):
@@ -226,28 +229,28 @@ def run_pipeline(query: str):
                 "metadata": {"source": url, "title": title, "chunk": i}
             })
 
-    print(f"Chunks prepared: {len(docs)}")
+    print(f"📦 Chunks prepared: {len(docs)}")
     print("SCRAPED DOC COUNT:", len(docs))
     if not docs:
-        print("No content found, exiting.")
+        print("❌ No content found, exiting.")
         return None
 
     # Step 3: Create search index and find relevant content
-    print("Creating search index...")
+    print("🔍 Creating search index...")
     search_engine = SimpleVectorSearch()
     search_engine.add_documents(docs)
     
     # Step 4: Search for relevant content
     relevant_docs = search_engine.search(query, k=3)
-    print(f"Found {len(relevant_docs)} relevant documents")
+    print(f"✅ Found {len(relevant_docs)} relevant documents")
     
     # Step 5: Prepare context for LLM
     context = "\n\n".join([doc["text"] for doc in relevant_docs])
     
     # Step 6: Get final answer from LLM
-    print("Getting answer from LLM...")
+    print("🤖 Getting answer from LLM...")
     answer = get_answer_from_llm(query, context)
-    print(f"LLM Answer: {answer}")
+    print(f"💡 LLM Answer: {answer}")
 
     # Step 7: Prepare data for Supabase
     rows = []
@@ -261,28 +264,46 @@ def run_pipeline(query: str):
         })
     
     df = pd.DataFrame(rows)
-    print("Data to upload:")
+    print("📊 Data to upload:")
     print(df[['title', 'url', 'score']].to_string())
     
     # Step 8: Upload to Supabase
-    print("Uploading to Supabase...")
-    upload_dataframe(df)
+    print("☁️ Uploading to Supabase...")
+    upload_success = upload_dataframe(df)
     
     return {
         "answer": answer,
         "table": df,
-        "sources_count": len(relevant_docs)
+        "sources_count": len(relevant_docs),
+        "upload_success": upload_success
     }
 
 if __name__ == "__main__":
-    # Récupérer la query depuis Google Sheets
-    query = get_query_from_google_sheets()
-    print(f"🎯 Query from Google Sheets: {query}")
+    # Récupérer TOUTES les queries depuis Google Sheets
+    all_queries = get_all_queries_from_google_sheets()
     
-    result = run_pipeline(query)
+    if not all_queries:
+        print("❌ No queries found in Google Sheets, using default")
+        all_queries = ["latest news about artificial intelligence"]
     
-    if result:
-        print(f"\n✅ Success! Processed {result['sources_count']} sources")
-        print(f"Answer: {result['answer'][:200]}...")
-    else:
-        print("\n❌ Pipeline failed")
+    print(f"📋 Processing {len(all_queries)} queries:")
+    for i, query in enumerate(all_queries, 1):
+        print(f"\n{'='*60}")
+        print(f"🔄 Processing query {i}/{len(all_queries)}: '{query}'")
+        print(f"{'='*60}")
+        
+        result = run_pipeline(query)
+        
+        if result:
+            print(f"✅ Query {i} completed! Processed {result['sources_count']} sources")
+            if result['upload_success']:
+                print(f"☁️ Data uploaded to Supabase for query: '{query}'")
+        else:
+            print(f"❌ Query {i} failed: '{query}'")
+        
+        # Pause entre les queries pour éviter le rate limiting
+        if i < len(all_queries):
+            print(f"⏳ Waiting 10 seconds before next query...")
+            time.sleep(10)
+    
+    print(f"\n🎉 All done! Processed {len(all_queries)} queries successfully!")
