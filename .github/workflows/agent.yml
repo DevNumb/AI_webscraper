@@ -7,8 +7,8 @@ on:
 
 jobs:
   run-agent:
+    environment: OPENROUTER_API_KEY
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -23,6 +23,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests beautifulsoup4 pandas sentence-transformers faiss-cpu langchain supabase gradio python-dotenv tqdm urllib3
       - name: Run AI Agent
+      
+
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
