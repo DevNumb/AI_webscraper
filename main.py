@@ -242,7 +242,7 @@ def run_pipeline(query: str):
 
 if __name__ == "__main__":
     # Test with a simple query
-    query = "what is web scraping"
+    query = "latest news about artificial intelligence"
     result = run_pipeline(query)
     
     if result:
