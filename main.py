@@ -20,6 +20,39 @@ OPENROUTER_PRIMARY = os.getenv("OPENROUTER_MODEL", "x-ai/grok-4.1-fast")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
+# ========== GOOGLE SHEETS INTEGRATION ==========
+GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1utPyB-aFOmOlVkkf0NvgfAlSUxDdj94-aWHGQjI7l4g/edit?usp=sharing"  # ⬅️ REMPLACEZ CETTE URL
+
+def get_query_from_google_sheets():
+    """Récupère la première query depuis Google Sheets"""
+    try:
+        # Extraire l'ID du sheet depuis l'URL
+        sheet_id = GOOGLE_SHEET_URL.split('/d/')[1].split('/')[0]
+        csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv"
+        
+        # Télécharger le CSV
+        response = requests.get(csv_url, timeout=10)
+        response.raise_for_status()
+        
+        # Lire le CSV
+        df = pd.read_csv(pd.compat.StringIO(response.text))
+        
+        # Prendre la première query (deuxième ligne, première colonne)
+        if len(df) > 1:
+            query = df.iloc[1, 0]
+        else:
+            query = df.iloc[0, 0]
+            
+        # Vérifier que ce n'est pas l'en-tête
+        if pd.notna(query) and str(query).strip().lower() != 'queries':
+            return str(query).strip()
+        else:
+            return "latest news about artificial intelligence"  # Fallback
+            
+    except Exception as e:
+        print(f"Error fetching from Google Sheets: {e}")
+        return "latest news about artificial intelligence"  # Fallback
+
 # ========== LLM CLIENT ==========
 def call_openrouter_model(model: str, messages: List[Dict[str,str]], extra: Optional[Dict]=None, timeout=60):
     payload = {
@@ -242,8 +275,10 @@ def run_pipeline(query: str):
     }
 
 if __name__ == "__main__":
-    # Test with a simple query
-    query = "latest news about artificial intelligence"
+    # Récupérer la query depuis Google Sheets
+    query = get_query_from_google_sheets()
+    print(f"🎯 Query from Google Sheets: {query}")
+    
     result = run_pipeline(query)
     
     if result:
