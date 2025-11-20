@@ -25,36 +25,26 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1utPyB-aFOmOlVkkf0NvgfAlSUxDdj94-aWHGQjI7l4g/edit?usp=sharing"  # ⬅️ REMPLACEZ CETTE URL
 GOOGLE_DOC_URL = "https://docs.google.com/document/d/1iQWxyLCxa5tX7EfLuncvP0nuAqWpcDxGm_iGZClu6tw/edit?usp=sharing" 
 def get_all_queries_from_google_sheets():
-    """Récupère TOUTES les queries depuis Google Sheets"""
     try:
-        # Extraire l'ID du sheet depuis l'URL
-        sheet_id = GOOGLE_SHEET_URL.split('/d/')[1].split('/')[0]
-        csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv"
+        print("🔍 DEBUG: Starting Google Sheets fetch...")
         
-        # Télécharger le CSV
-        response = requests.get(csv_url, timeout=10)
-        response.raise_for_status()
+        # Test URL - utilisez une sheet publique de test
+        TEST_SHEET_URL = "https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit"
+        sheet_id = TEST_SHEET_URL.split('/d/')[1].split('/')[0]
         
-        # Lire le CSV
-        df = pd.read_csv(pd.compat.StringIO(response.text))
+        print(f"🔍 DEBUG: Using test sheet ID: {sheet_id}")
         
-        # Prendre TOUTES les queries (sauf l'en-tête)
-        queries = []
-        for i in range(len(df)):
-            query = df.iloc[i, 0]
-            # Vérifier que ce n'est pas l'en-tête et pas vide
-            if (pd.notna(query) and 
-                str(query).strip().lower() != 'queries' and 
-                str(query).strip() != ''):
-                queries.append(str(query).strip())
+        csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
+        print(f"🔍 DEBUG: CSV URL: {csv_url}")
         
-        print(f"📋 Found {len(queries)} queries in Google Sheets")
-        return queries
-            
-    except Exception as e:
-        print(f"Error fetching from Google Sheets: {e}")
-        return ["latest news about artificial intelligence"]  # Fallback
-
+        response = requests.get(csv_url, timeout=15)
+        print(f"🔍 DEBUG: Response status: {response.status_code}")
+        print(f"🔍 DEBUG: Response headers: {response.headers}")
+        
+        if response.status_code == 200:
+            content = response.text
+            print(f"🔍 DEBUG: First 500 chars of response: {content[:500]}")
+            # ... reste du code
 def format_document_content(all_results):
     """Crée un document structuré avec mise en forme professionnelle"""
     
