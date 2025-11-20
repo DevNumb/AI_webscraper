@@ -14,9 +14,9 @@ import faiss
 import json
 
 # ========== CONFIGURATION ==========
-OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completion"
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-OPENROUTER_PRIMARY = os.getenv("OPENROUTER_MODEL", "deepseek-r1:free")
+OPENROUTER_PRIMARY = os.getenv("OPENROUTER_MODEL", "x-ai/grok-4.1-fast")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
