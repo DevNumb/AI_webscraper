@@ -194,6 +194,7 @@ def run_pipeline(query: str):
             })
 
     print(f"Chunks prepared: {len(docs)}")
+    print("SCRAPED DOC COUNT:", len(docs))
     if not docs:
         print("No content found, exiting.")
         return None
