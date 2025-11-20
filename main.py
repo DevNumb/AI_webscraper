@@ -22,8 +22,8 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
 # ========== GOOGLE SHEETS & DOCS INTEGRATION ==========
-GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit"  # ⬅️ REMPLACEZ CETTE URL
-
+GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1utPyB-aFOmOlVkkf0NvgfAlSUxDdj94-aWHGQjI7l4g/edit?usp=sharing"  # ⬅️ REMPLACEZ CETTE URL
+GOOGLE_DOC_URL = "https://docs.google.com/document/d/1iQWxyLCxa5tX7EfLuncvP0nuAqWpcDxGm_iGZClu6tw/edit?usp=sharing" 
 def get_all_queries_from_google_sheets():
     """Récupère TOUTES les queries depuis Google Sheets"""
     try:
